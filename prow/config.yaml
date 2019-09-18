@@ -14,18 +14,11 @@
 
 tide:
   merge_method:
-    GoogleCloudPlatform/osconfig: squash
-    GoogleCloudPlatform/guest-logging-go: squash
-    GoogleCloudPlatform/guest-agent: squash
-  target_url: https://prow.gflocks.com/tide
+    iamsubratp/osconfig: squash
+  target_url: https://prow.subratp.com/tide
   queries:
     - repos:
-        - GoogleCloudPlatform/osconfig
-        - GoogleCloudPlatform/oss-test-infra
-        - GoogleCloudPlatform/guest-logging-go
-        - GoogleCloudPlatform/guest-agent
-        - GoogleCloudPlatform/guest-oslogin
-        - GoogleCloudPlatform/testgrid
+        - iamsubratp/osconfig
       labels:
         - lgtm
         - approved
@@ -36,7 +29,7 @@ tide:
 
 plank:
   job_url_prefix_config:
-    '*': https://prow.gflocks.com/view/gcs/
+    '*': https://prow.subratp.com/view/gcs/
   pod_pending_timeout: 60m
   default_decoration_config:
     timeout: 7200000000000 # 2h
@@ -57,7 +50,7 @@ sinker:
   max_pod_age: 24h
 
 prowjob_namespace: default
-pod_namespace: test-pods
+pod_namespace: default
 log_level: debug
 
 deck:

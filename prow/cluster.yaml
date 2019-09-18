@@ -85,7 +85,6 @@ spec:
       - name: plank
         image: gcr.io/k8s-prow/plank:v20190913-fb0db8137
         args:
-        - --kubeconfig=/etc/kubeconfig/oss-config
         - --dry-run=false
         - --github-token-path=
         - --skip-report=true
@@ -98,9 +97,6 @@ spec:
         - name: job-config
           mountPath: /etc/job-config
           readOnly: true
-        - mountPath: /etc/kubeconfig
-          name: kubeconfig
-          readOnly: true
       volumes:
       - name: config
         configMap:
@@ -108,10 +104,6 @@ spec:
       - name: job-config
         configMap:
           name: job-config
-      - name: kubeconfig
-        secret:
-          defaultMode: 420
-          secretName: kubeconfig
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -131,7 +123,6 @@ spec:
       - name: sinker
         image: gcr.io/k8s-prow/sinker:v20190913-fb0db8137
         args:
-        - --kubeconfig=/etc/kubeconfig/oss-config
         - --config-path=/etc/config/config.yaml
         - --job-config-path=/etc/job-config
         - --dry-run=false
@@ -142,9 +133,6 @@ spec:
         - name: job-config
           mountPath: /etc/job-config
           readOnly: true
-        - mountPath: /etc/kubeconfig
-          name: kubeconfig
-          readOnly: true
       volumes:
       - name: config
         configMap:
@@ -152,10 +140,6 @@ spec:
       - name: job-config
         configMap:
           name: job-config
-      - name: kubeconfig
-        secret:
-          defaultMode: 420
-          secretName: kubeconfig
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -181,13 +165,10 @@ spec:
       - name: deck
         image: gcr.io/k8s-prow/deck:v20190913-fb0db8137
         args:
-        - --kubeconfig=/etc/kubeconfig/oss-config
         - --config-path=/etc/config/config.yaml
         - --job-config-path=/etc/job-config
         - --spyglass=true
-        - --tide-url=http://tide/
         - --hook-url=http://hook:8888/plugin-help
-        - --redirect-http-to=prow.gflocks.com
         - --github-oauth-config-file=/etc/github/oauth
         ports:
         - name: http
@@ -199,9 +180,6 @@ spec:
         - name: job-config
           mountPath: /etc/job-config
           readOnly: true
-        - mountPath: /etc/kubeconfig
-          name: kubeconfig
-          readOnly: true
         - name: oauth
           mountPath: /etc/github
           readOnly: true
@@ -212,10 +190,6 @@ spec:
       - name: job-config
         configMap:
           name: job-config
-      - name: kubeconfig
-        secret:
-          defaultMode: 420
-          secretName: kubeconfig
       - name: oauth
         secret:
           secretName: oauth-token
@@ -272,21 +246,14 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
+  namespace: default
   name: deck-ing
-  annotations:
-    kubernetes.io/ingress.global-static-ip-name: "oss-prow"
-    kubernetes.io/ingress.class: "gce"
-    kubernetes.io/tls-acme: "true"
-    certmanager.k8s.io/cluster-issuer: letsencrypt-prod
-    certmanager.k8s.io/acme-http01-edit-in-place: "true"
 spec:
-  tls:
-  - secretName: prow-tls
-    hosts:
-    - prow.gflocks.com
+  backend: # specify the default backend for `ingress-gce` (https://cloud.google.com/kubernetes-engine/docs/concepts/ingress#default_backend)
+    serviceName: deck
+    servicePort: 80
   rules:
-  - host: prow.gflocks.com
-    http:
+  - http:
       paths:
       - path: /*
         backend:
@@ -296,115 +263,6 @@ spec:
         backend:
           serviceName: hook
           servicePort: 8888
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: gerrit
-  labels:
-    app: gerrit
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: gerrit
-  template:
-    metadata:
-      labels:
-        app: gerrit
-    spec:
-      serviceAccountName: gerrit
-      terminationGracePeriodSeconds: 30
-      containers:
-      - name: gerrit
-        image: gcr.io/k8s-prow/gerrit:v20190913-fb0db8137
-        args:
-        - --config-path=/etc/config/config.yaml
-        - --job-config-path=/etc/job-config
-        - --cookiefile=/etc/cookies/cookies
-        - --gcs-credentials-file=/etc/robot/service-account.json
-        - --gerrit-projects=https://kunit-review.googlesource.com=linux
-        - --last-sync-fallback=gs://oss-prow/last-gerrit-sync
-        volumeMounts:
-        - name: config
-          mountPath: /etc/config
-          readOnly: true
-        - name: job-config
-          mountPath: /etc/job-config
-          readOnly: true
-        - name: cookies
-          mountPath: /etc/cookies
-          readOnly: true
-        - name: service-account
-          mountPath: /etc/robot
-          readOnly: true
-      volumes:
-      - name: config
-        configMap:
-          name: config
-      - name: job-config
-        configMap:
-          name: job-config
-      - name: cookies
-        secret:
-          defaultMode: 420
-          secretName: http-cookiefile
-      - name: service-account
-        secret:
-          secretName: service-account
----
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: crier
-  labels:
-    app: crier
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: crier
-    spec:
-      serviceAccountName: crier
-      terminationGracePeriodSeconds: 30
-      containers:
-      - name: crier
-        image: gcr.io/k8s-prow/crier:v20190913-fb0db8137
-        args:
-        - --gerrit-workers=1
-        - --github-workers=1
-        - --cookiefile=/etc/cookies/cookies
-        - --gerrit-projects=https://kunit-review.googlesource.com=linux
-        - --config-path=/etc/config/config.yaml
-        - --job-config-path=/etc/job-config
-        volumeMounts:
-        - name: cookies
-          mountPath: /etc/cookies
-          readOnly: true
-        - name: config
-          mountPath: /etc/config
-          readOnly: true
-        - name: job-config
-          mountPath: /etc/job-config
-          readOnly: true
-        - name: oauth
-          mountPath: /etc/github
-          readOnly: true
-      volumes:
-      - name: cookies
-        secret:
-          defaultMode: 420
-          secretName: http-cookiefile
-      - name: config
-        configMap:
-          name: config
-      - name: job-config
-        configMap:
-          name: job-config
-      - name: oauth
-        secret:
-          secretName: oauth-token
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -521,7 +379,7 @@ subjects:
   namespace: "default"
 - kind: ServiceAccount
   name: "deck"
-  namespace: "test-pods"
+  namespace: "default"
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -667,71 +525,6 @@ subjects:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: "gerrit"
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: "gerrit"
-rules:
-- apiGroups:
-    - "prow.k8s.io"
-  resources:
-    - prowjobs
-  verbs:
-    - create
-    - list
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: "gerrit"
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: "gerrit"
-subjects:
-- kind: ServiceAccount
-  name: "gerrit"
----
-kind: ServiceAccount
-apiVersion: v1
-metadata:
-  name: "crier"
----
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  # "namespace" omitted since ClusterRoles are not namespaced
-  name: crier
-rules:
-- apiGroups:
-    - "prow.k8s.io"
-  resources:
-    - "prowjobs"
-  verbs:
-    - "get"
-    - "watch"
-    - "list"
-    - "patch"
----
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  name: "crier"
-  namespace: "default"
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: "crier"
-subjects:
-- kind: ServiceAccount
-  name: "crier"
-  namespace: "default"
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
   name: "hook"
 ---
 kind: Role
@@ -767,93 +560,3 @@ subjects:
 - kind: ServiceAccount
   name: "hook"
 ---
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: tide
-  labels:
-    app: tide
-spec:
-  replicas: 1 # Do not scale up.
-  template:
-    metadata:
-      labels:
-        app: tide
-    spec:
-      serviceAccountName: tide
-      containers:
-      - name: tide
-        image: gcr.io/k8s-prow/tide:v20190913-fb0db8137
-        args:
-        - --config-path=/etc/config/config.yaml
-        - --job-config-path=/etc/job-config
-        - --dry-run=false
-        ports:
-          - name: http
-            containerPort: 8888
-        volumeMounts:
-        - name: oauth
-          mountPath: /etc/github
-          readOnly: true
-        - name: config
-          mountPath: /etc/config
-          readOnly: true
-        - name: job-config
-          mountPath: /etc/job-config
-          readOnly: true
-      volumes:
-      - name: oauth
-        secret:
-          secretName: oauth-token
-      - name: config
-        configMap:
-          name: config
-      - name: job-config
-        configMap:
-          name: job-config
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: tide
-spec:
-  selector:
-    app: tide
-  ports:
-  - port: 80
-    targetPort: 8888
-  type: NodePort
----
-
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  namespace: default
-  name: "tide"
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  namespace: default
-  name: "tide"
-rules:
-  - apiGroups:
-      - "prow.k8s.io"
-    resources:
-      - prowjobs
-    verbs:
-      - create
-      - list
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
-  namespace: default
-  name: "tide"
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: "tide"
-subjects:
-- kind: ServiceAccount
-  name: "tide"
