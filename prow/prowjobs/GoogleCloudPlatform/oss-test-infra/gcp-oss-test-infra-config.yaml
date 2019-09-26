@@ -5,10 +5,11 @@ presubmits:
       branches:
         - master
       decorate: true
+      cluster: build
       always_run: true
       spec:
         containers:
-          - image: gcr.io/k8s-prow/checkconfig:v20190913-fb0db8137
+          - image: gcr.io/k8s-prow/checkconfig:v20190924-cb71f84e1
             imagePullPolicy: Always
             command:
               - /checkconfig
@@ -20,6 +21,7 @@ presubmits:
       branches:
         - master
       decorate: true
+      cluster: build
       always_run: true
       spec:
         containers:

@@ -83,7 +83,7 @@ spec:
       serviceAccountName: plank
       containers:
       - name: plank
-        image: gcr.io/k8s-prow/plank:v20190913-fb0db8137
+        image: gcr.io/k8s-prow/plank:v20190924-cb71f84e1
         args:
         - --dry-run=false
         - --github-token-path=
@@ -121,7 +121,7 @@ spec:
       serviceAccountName: sinker
       containers:
       - name: sinker
-        image: gcr.io/k8s-prow/sinker:v20190913-fb0db8137
+        image: gcr.io/k8s-prow/sinker:v20190924-cb71f84e1
         args:
         - --config-path=/etc/config/config.yaml
         - --job-config-path=/etc/job-config
@@ -163,7 +163,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: deck
-        image: gcr.io/k8s-prow/deck:v20190913-fb0db8137
+        image: gcr.io/k8s-prow/deck:v20190924-cb71f84e1
         args:
         - --config-path=/etc/config/config.yaml
         - --job-config-path=/etc/job-config
@@ -223,7 +223,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
       - name: horologium
-        image: gcr.io/k8s-prow/horologium:v20190913-fb0db8137
+        image: gcr.io/k8s-prow/horologium:v20190924-cb71f84e1
         args:
         - --config-path=/etc/config/config.yaml
         - --job-config-path=/etc/job-config
@@ -264,6 +264,115 @@ spec:
           serviceName: hook
           servicePort: 8888
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gerrit
+  labels:
+    app: gerrit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gerrit
+  template:
+    metadata:
+      labels:
+        app: gerrit
+    spec:
+      serviceAccountName: gerrit
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: gerrit
+        image: gcr.io/k8s-prow/gerrit:v20190924-cb71f84e1
+        args:
+        - --config-path=/etc/config/config.yaml
+        - --job-config-path=/etc/job-config
+        - --cookiefile=/etc/cookies/cookies
+        - --gcs-credentials-file=/etc/robot/service-account.json
+        - --gerrit-projects=https://kunit-review.googlesource.com=linux
+        - --last-sync-fallback=gs://oss-prow/last-gerrit-sync
+        volumeMounts:
+        - name: config
+          mountPath: /etc/config
+          readOnly: true
+        - name: job-config
+          mountPath: /etc/job-config
+          readOnly: true
+        - name: cookies
+          mountPath: /etc/cookies
+          readOnly: true
+        - name: service-account
+          mountPath: /etc/robot
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: config
+      - name: job-config
+        configMap:
+          name: job-config
+      - name: cookies
+        secret:
+          defaultMode: 420
+          secretName: http-cookiefile
+      - name: service-account
+        secret:
+          secretName: service-account
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: crier
+  labels:
+    app: crier
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: crier
+    spec:
+      serviceAccountName: crier
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: crier
+        image: gcr.io/k8s-prow/crier:v20190924-cb71f84e1
+        args:
+        - --gerrit-workers=1
+        - --github-workers=1
+        - --cookiefile=/etc/cookies/cookies
+        - --gerrit-projects=https://kunit-review.googlesource.com=linux
+        - --config-path=/etc/config/config.yaml
+        - --job-config-path=/etc/job-config
+        volumeMounts:
+        - name: cookies
+          mountPath: /etc/cookies
+          readOnly: true
+        - name: config
+          mountPath: /etc/config
+          readOnly: true
+        - name: job-config
+          mountPath: /etc/job-config
+          readOnly: true
+        - name: oauth
+          mountPath: /etc/github
+          readOnly: true
+      volumes:
+      - name: cookies
+        secret:
+          defaultMode: 420
+          secretName: http-cookiefile
+      - name: config
+        configMap:
+          name: config
+      - name: job-config
+        configMap:
+          name: job-config
+      - name: oauth
+        secret:
+          secretName: oauth-token
+---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -286,7 +395,7 @@ spec:
       terminationGracePeriodSeconds: 180
       containers:
       - name: hook
-        image: gcr.io/k8s-prow/hook:v20190913-fb0db8137
+        image: gcr.io/k8s-prow/hook:v20190924-cb71f84e1
         imagePullPolicy: Always
         args:
         - --config-path=/etc/config/config.yaml
@@ -559,4 +668,95 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: "hook"
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: tide
+  labels:
+    app: tide
+spec:
+  replicas: 1 # Do not scale up.
+  template:
+    metadata:
+      labels:
+        app: tide
+    spec:
+      serviceAccountName: tide
+      containers:
+      - name: tide
+        image: gcr.io/k8s-prow/tide:v20190924-cb71f84e1
+        args:
+        - --config-path=/etc/config/config.yaml
+        - --job-config-path=/etc/job-config
+        - --dry-run=false
+        ports:
+          - name: http
+            containerPort: 8888
+        volumeMounts:
+        - name: oauth
+          mountPath: /etc/github
+          readOnly: true
+        - name: config
+          mountPath: /etc/config
+          readOnly: true
+        - name: job-config
+          mountPath: /etc/job-config
+          readOnly: true
+      volumes:
+      - name: oauth
+        secret:
+          secretName: oauth-token
+      - name: config
+        configMap:
+          name: config
+      - name: job-config
+        configMap:
+          name: job-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tide
+spec:
+  selector:
+    app: tide
+  ports:
+  - port: 80
+    targetPort: 8888
+  type: NodePort
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: default
+  name: "tide"
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  namespace: default
+  name: "tide"
+rules:
+  - apiGroups:
+      - "prow.k8s.io"
+    resources:
+      - prowjobs
+    verbs:
+      - create
+      - list
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  namespace: default
+  name: "tide"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: "tide"
+subjects:
+- kind: ServiceAccount
+  name: "tide"
 ---
