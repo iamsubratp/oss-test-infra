@@ -23,18 +23,16 @@ config_updater:
 
 approve:
 - repos:
-  - GoogleCloudPlatform
-  - googleforgames
+  - iamsubratp
   require_self_approval: false
 
 lgtm:
 - repos:
-  - GoogleCloudPlatform
-  - googleforgames
+  - iamsubratp
   review_acts_as_lgtm: true
 
 plugins:
-  GoogleCloudPlatform:
+  iamsubratp:
   - approve
   - assign
   - cat
@@ -44,7 +42,7 @@ plugins:
   - size
   - trigger
 
-  GoogleCloudPlatform/oss-test-infra:
+  iamsubratp/oss-test-infra:
   - blunderbuss
   - config-updater
   - golint
@@ -55,32 +53,5 @@ plugins:
   - yuks
   - hold
 
-  GoogleCloudPlatform/osconfig:
+  iamsubratp/osconfig:
   - golint
-
-  GoogleCloudPlatform/testgrid:
-  - blunderbuss
-  - config-updater
-  - golint
-  - heart
-  - pony
-  - shrug
-  - wip
-  - yuks
-  - hold
-
-  googleforgames/agones:
-  - approve # /approve
-  - assign # /assign and /cc
-  - blunderbuss # auto-/cc
-  - cat # /meow
-  - dog # /woof
-  - golint # /lint
-  - heart # encourage OWNERS changes
-  - hold # /hold PR from merge
-  - lgtm # /lgtm
-  - pony # /pony
-  - shrug # /shrug
-  - size # auto-add size label
-  - wip # draft-PR awareness
-  - yuks # /joke

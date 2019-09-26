@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 
 func TestTrustedJobs(t *testing.T) {
 	const trusted = "test-infra-trusted"
-	trustedPath := path.Join(*jobConfigPath, "GoogleCloudPlatform", "oss-test-infra", "gcp-oss-test-infra-config.yaml")
+	trustedPath := path.Join(*jobConfigPath, "iamsubratp", "oss-test-infra", "gcp-oss-test-infra-config.yaml")
 
 	// Presubmits may not use trusted clusters.
 	for _, pre := range c.AllPresubmits(nil) {

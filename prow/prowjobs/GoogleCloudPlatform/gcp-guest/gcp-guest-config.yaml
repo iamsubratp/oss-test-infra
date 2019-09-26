@@ -1,5 +1,14 @@
+periodics:
+- interval: 10m
+  agent: kubernetes
+  name: echo-test
+  spec:
+    containers:
+    - image: alpine
+      command: ["/bin/date"]
+
 postsubmits:
-  GoogleCloudPlatform/osconfig:
+  iamsubratp/osconfig:
   - name: osconfig-build
     cluster: gcp-guest
     decorate: true
@@ -25,7 +34,7 @@ postsubmits:
     - ^master$
 
 presubmits:
-  GoogleCloudPlatform/osconfig:
+  iamsubratp/osconfig:
   - name: osconfig-presubmit-build
     cluster: gcp-guest
     run_if_changed: ".*/packaging/.*"
@@ -97,172 +106,3 @@ presubmits:
       - name: codecov
         secret:
           secretName: codecov
-
-  GoogleCloudPlatform/guest-agent:
-  - name: guest-agent-presubmit-gocheck
-    cluster: gcp-guest
-    run_if_changed: ".*\\.go$"
-    trigger: "(?m)^/gocheck$"
-    rerun_command: "/gocheck"
-    context: prow/presubmit/gocheck
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/gocheck:latest
-        imagePullPolicy: Always
-        command:
-        - "/go/main.sh"
-  - name: guest-agent-presubmit-gobuild
-    cluster: gcp-guest
-    run_if_changed: ".*\\.go$"
-    trigger: "(?m)^/gobuild$"
-    rerun_command: "/gobuild"
-    context: prow/presubmit/gobuild
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/gobuild:latest
-        imagePullPolicy: Always
-        command:
-        - "/go/main.sh"
-  - name: guest-agent-presubmit-gotest
-    cluster: gcp-guest
-    run_if_changed: ".*\\.go$"
-    trigger: "(?m)^/gotest$"
-    rerun_command: "/gotest"
-    context: prow/presubmit/gotest
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/gotest:latest
-        imagePullPolicy: Always
-        command:
-        - "/go/main.sh"
-        volumeMounts:
-        - name: codecov
-          mountPath: /etc/codecov
-          readOnly: true
-      volumes:
-      - name: codecov
-        secret:
-          secretName: codecov
-
-  GoogleCloudPlatform/guest-logging-go:
-  - name: guest-logging-presubmit-gocheck
-    cluster: gcp-guest
-    run_if_changed: ".*\\.go$"
-    trigger: "(?m)^/gocheck$"
-    rerun_command: "/gocheck"
-    context: prow/presubmit/gocheck
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/gocheck:latest
-        imagePullPolicy: Always
-        command:
-        - "/go/main.sh"
-  - name: guest-logging-presubmit-gobuild
-    cluster: gcp-guest
-    run_if_changed: ".*\\.go$"
-    trigger: "(?m)^/gobuild$"
-    rerun_command: "/gobuild"
-    context: prow/presubmit/gobuild
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/gobuild:latest
-        imagePullPolicy: Always
-        command:
-        - "/go/main.sh"
-  - name: guest-logging-presubmit-gotest
-    cluster: gcp-guest
-    run_if_changed: ".*\\.go$"
-    trigger: "(?m)^/gotest$"
-    rerun_command: "/gotest"
-    context: prow/presubmit/gotest
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/gotest:latest
-        imagePullPolicy: Always
-        command:
-        - "/go/main.sh"
-        volumeMounts:
-        - name: codecov
-          mountPath: /etc/codecov
-          readOnly: true
-      volumes:
-      - name: codecov
-        secret:
-          secretName: codecov
-
-  GoogleCloudPlatform/guest-oslogin:
-  - name: oslogin-presubmit-selinux-module
-    cluster: gcp-guest
-    run_if_changed: ".*/policy/.*"
-    trigger: "(?m)^/modcheck$"
-    rerun_command: "/modcheck"
-    context: prow/presubmit/selinux_module_check
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/selinux-tools:latest
-        imagePullPolicy: Always
-        command:
-        - "./selinux/validate.sh"
-  - name: oslogin-presubmit-build
-    cluster: gcp-guest
-    always_run: true
-    trigger: "(?m)^/build$"
-    rerun_command: "/build"
-    context: prow/presubmit/build
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/build-essential:latest
-        imagePullPolicy: Always
-        command:
-        - make
-        args:
-        - prowbuild
-  - name: oslogin-presubmit-test
-    cluster: gcp-guest
-    always_run: true
-    trigger: "(?m)^/test$"
-    rerun_command: "/test"
-    context: prow/presubmit/test
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/build-essential:latest
-        imagePullPolicy: Always
-        command:
-        - make
-        args:
-        - prowtest
-
-  GoogleCloudPlatform/guest-configs:
-  - name: guest-configs-presubmit-build
-    cluster: gcp-guest
-    run_if_changed: ".*/packaging/.*"
-    trigger: "(?m)^/packagebuild$"
-    rerun_command: "/packagebuild"
-    context: prow/presubmit/packagebuild
-    decorate: true
-    spec:
-      containers:
-      - image: gcr.io/gcp-guest/daisy-builder:latest
-        command:
-        - "/main.sh"
-        args: ["gcp-guest", "us-west1-a", "./packaging/build_packages_wf.json"]
-        volumeMounts:
-        - name: daisy-service-account
-          mountPath: /etc/daisy-service-account
-          readOnly: true
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /etc/daisy-service-account/creds.json
-      volumes:
-      - name: daisy-service-account
-        secret:
-          secretName: daisy-service-account
